@@ -1,0 +1,52 @@
+# Table 4 (URM = sexual Artemia urmiana only):
+- salinity: 75
+  temperature: 27
+  food: inf
+  lifespan: 43.3
+  lifespan_sd: 16.57
+  prereproductive_period: 21.5
+  prereproductive_period_sd: 1.83
+  total_offspring_per_female: 194.3
+  total_offspring_per_female_sd: 23.58
+- salinity: 100
+  temperature: 27
+  food: inf
+  lifespan: 57.6
+  lifespan_sd: 28.83
+  prereproductive_period: 24.9
+  prereproductive_period_sd: 11.97
+  total_offspring_per_female: 168.9
+  total_offspring_per_female_sd: 22.36
+- salinity: 125
+  temperature: 27
+  food: inf
+  lifespan: 46.7
+  lifespan_sd: 16.06
+  prereproductive_period: 29.6
+  prereproductive_period_sd: 2.78
+  total_offspring_per_female: 96.2
+  total_offspring_per_female_sd: 15.24
+- salinity: 150
+  temperature: 27
+  food: inf
+  lifespan: 42.2
+  lifespan_sd: 12.98
+  prereproductive_period: 30
+  prereproductive_period_sd: 3.2
+  total_offspring_per_female: 71.3
+  total_offspring_per_female_sd: 12.43
+- salinity: 175
+  temperature: 27
+  food: inf
+  lifespan: 44.9
+  lifespan_sd: 8.39
+  prereproductive_period: 34.9
+  prereproductive_period_sd: 2.97
+  total_offspring_per_female: 61.6
+  total_offspring_per_female_sd: 10.61
+
+
+
+
+
+

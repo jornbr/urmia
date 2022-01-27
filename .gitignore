@@ -1,1 +1,5 @@
 /DEB/conda-env
+/boxmodel/*.png
+/bathymetry/*.nc
+/bathymetry/*.png
+/bathymetry/*.kml

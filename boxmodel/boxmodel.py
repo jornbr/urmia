@@ -4,6 +4,7 @@
 
 # First year of simulation
 startyear = 1994
+stopyear = 2012
 
 # Salinity in kg/m3 (g/L) at start of first year of simulation
 # In presentation by Fakhimi Kavossi Heydarzadeh, 14/12/2014:
@@ -18,7 +19,7 @@ startyear = 1994
 # 2005-2006: >300 ppt
 # Van Stappen et al 2001
 # 1996: 170 ppt
-salinity_ini = 130.
+salinity_ini = 150 #130.
 
 # Source of bathymetry/hypsograph
 # 1: data provided by Karimi in Iran
@@ -57,8 +58,10 @@ animate = False
 
 import datetime
 import pickle
+import os
 import numpy
 import pylab,matplotlib.dates
+import cmocean
 
 # Read forcing (evaporation, precipitation, rivers) from previously parsed data.
 with open('water_budget.pickle','rb') as f:
@@ -102,8 +105,10 @@ else:
     with open('hypsograph.dat','rU') as f:
         data = numpy.array([list(map(float,l.split())) for l in f])
 
-salt_thickness = numpy.maximum(-(data[:,0]-1271.)*.5*salt_porosity,0.)
-#data[:,0] -= salt_thickness
+# Correct recent bathymetry by subtracting estimated salt layer thickness
+# This makes it representative for the period before slat precipitation
+salt_thickness = numpy.maximum(-(data[:,0]-1271.)*1*salt_porosity,0.)
+data[:,0] -= salt_thickness
 max_z_surf = data[:,0].max()
 
 # Plot hypsograph
@@ -186,14 +191,17 @@ def printStill(z_bot,area,h_salt,z_surf,dts,z_surfs,salts,path,curdate,dpi=96):
     pylab.subplot2grid((2,2), (0, 0), rowspan=2)
     pylab.cla()
     pylab.fill_between(x,y_figbot,y_bot,facecolor='gray')
-    pylab.fill_between(x,y_bot,y_salt,facecolor='w')
-    pylab.fill_between(x,y_salt,y_surf,facecolor='b')
+    pylab.fill_between(x,y_bot,y_salt,facecolor=cmocean.cm.haline(cmocean.cm.haline.N))
+    if len(salts) > 0:
+        watercolor = cmocean.cm.haline(salts[-1] / 700)
+        pylab.fill_between(x,y_salt,y_surf,facecolor=watercolor)
     pylab.plot(x,y_bot,'-k')
     pylab.plot(x,y_salt,'-k')
     pylab.plot(x,y_surf,'-k')
     pylab.xlabel('distance from centre (km)')
     pylab.ylabel('elevation (m)')
-    pylab.axis('tight')
+    pylab.xlim(x[0], x[-1])
+    pylab.ylim(y_bot.min(), y_bot.max())
     strdate = curdate.strftime('%d-%m-%Y')
     pylab.title(strdate)
 
@@ -202,24 +210,26 @@ def printStill(z_bot,area,h_salt,z_surf,dts,z_surfs,salts,path,curdate,dpi=96):
     ax = pylab.subplot2grid((2,2), (0, 1))
     pylab.cla()
     istart = water_budget_dt.searchsorted(pylab.date2num(startdate))-1
-    pylab.plot_date(water_budget_dt[istart:],water_budget[istart:,3],'-r',label='observed')
-    pylab.plot_date(dts,z_surfs,'-b',label='modelled')
-    pylab.plot_date(dts[-1:],z_surfs[-1:],'ob')
+    pylab.plot_date(water_budget_dt[istart:],water_budget[istart:,3],'-',label='observed',color='C1')
+    pylab.plot_date(dts,z_surfs,'-',color='C0',label='modelled')
+    pylab.plot_date(dts[-1:],z_surfs[-1:],'o',mfc='C0', mec='k', mew=.3)
     ax.get_yaxis().get_major_formatter().set_useOffset(False)
     ax.get_xaxis().set_major_locator(locator)
     pylab.legend()
     pylab.grid(True)
+    pylab.xlim(datetime.datetime(startyear, 1, 1), datetime.datetime(stopyear, 1, 1))
     pylab.ylabel('surface level (m)')
 
     # Plot time series for salinity.
     ax = pylab.subplot2grid((2,2), (1, 1))
     pylab.cla()
-    pylab.plot_date(dts,salts,'-b',label='modelled')
-    pylab.plot_date(dts[-1:],salts[-1:],'ob')
+    pylab.plot_date(dts,salts,'-',color='C0',label='modelled')
+    pylab.plot_date(dts[-1:],salts[-1:],'ob',mfc='C0', mec='k', mew=.3)
     pylab.grid(True)
     pylab.xlim(water_budget_dt[istart],water_budget_dt[-1])
     ax.get_xaxis().set_major_locator(locator)
     pylab.ylim(100.,450.)
+    pylab.xlim(datetime.datetime(startyear, 1, 1), datetime.datetime(stopyear, 1, 1))
     pylab.ylabel('salinity (g/L)')
 
     pylab.savefig(path,dpi=dpi)
@@ -234,9 +244,10 @@ salts = []
 h_salts = []
 iframe = 0
 if animate:
+    os.makedirs('animation', exist_ok=True)
     fig = pylab.figure(figsize=(10,5))
     pylab.subplots_adjust(bottom=0.12,left=0.15,wspace=0.25)
-years = numpy.arange(startyear,2012,1)
+years = numpy.arange(startyear,stopyear,1)
 startdate = datetime.datetime(startyear,1,1)
 for iyear in years:
     for iday in range(365):
@@ -285,6 +296,8 @@ for iyear in years:
         salt_precip = NaCl_precip_rate*max(0.,NaCl_sat-1.)
         spec_salt_dissol = numpy.zeros_like(area_dist)
         spec_salt_dissol[salt_per_level>0] = NaCl_dissol_rate*max(0.,1.-NaCl_sat)
+        dry = new_z_grid_cent > z_surf
+        spec_salt_dissol[dry] = 0
         dS = -salt_precip*V + (spec_salt_dissol*area_dist).sum()
 
         # Compute prepitated salt per bottom depth bin (multiply by total volume in bin)
@@ -294,7 +307,7 @@ for iyear in years:
         # Save frame for animation if desired.
         if animate and ((curdate-startdate).days%10==0):
             iframe += 1
-            printStill(z_grid_cent,area_dist,h_salt,z_surf,dts,z_surfs,salts,'animation/%05i.png' % iframe,curdate)
+            printStill(z_grid_cent,area_dist,h_salt/salt_porosity,z_surf,dts,z_surfs,salts,'animation/%05i.png' % iframe,curdate)
 
         # Time integrate (Forward Euler, delta_t=1 day)
         V += dV
@@ -347,17 +360,32 @@ pylab.savefig('salinity.png',dpi=150)
 
 with open('salinity.dat','w') as f:
     for i in range(len(dts)):
-        f.write('%s\t%s\n' % (pylab.num2date(dts[i]).strftime('%y-%m-%d'),salts[i]))
+        f.write('%s\t%s\t%s\n' % (pylab.num2date(dts[i]).strftime('%Y-%m-%d'), salts[i], z_surfs[i]))
 
 # Plot precipitated salt as function of bottom elevation, for different years.
 pylab.figure()
-for iyear,h_salt in zip(years[::-1],h_salts[::-1],):
-    pylab.plot(z_grid_cent,h_salt/salt_porosity,'-',label='%i' % iyear)
 pylab.xlabel('bottom elevation (m)')
 pylab.ylabel('precipitated salt (m)')
-pylab.legend()
 pylab.grid(True)
-pylab.savefig('salt_layer_thickness.png',dpi=150)
+pylab.xlim(1265, 1276)
+pylab.ylim(-1, 4)
+for iyear,h_salt in zip(years,h_salts):
+    if iyear > 2001:
+        l, = pylab.plot(z_grid_cent,h_salt/salt_porosity,'-',label='%i' % iyear)
+        pylab.savefig('salt_layer_thickness_%i.png' % iyear, dpi=300)
+        if iyear == 2011:
+            l2011 = l
+pylab.legend()
+d = numpy.loadtxt('../bathymetry/bathymetry_difference.dat', skiprows=1)
+d[:, 1] -= .1
+grid = numpy.linspace(d[:, 0].min(), d[:, 0].max(), 20)
+color = l2011.get_color()
+for i in range(grid.size - 1):
+    valid = numpy.logical_and(d[:, 0] > grid[i], d[:, 0] < grid[i + 1])
+    v = d[valid, 1]
+    pylab.errorbar(d[valid, 0].mean(), v.mean(), yerr=numpy.std(v), fmt='.', ecolor=color, mec=color, mfc=color, elinewidth=1)
+#pylab.plot(d[:, 0], d[:, 1], '.')
+pylab.savefig('salt_layer_thickness.png',dpi=300)
 
 # Plot lake surface area as function of lake level (for validation of hypsograph logic)
 pylab.figure()

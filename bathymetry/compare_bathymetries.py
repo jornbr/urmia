@@ -85,9 +85,16 @@ for i,z in enumerate(z_old_rm):
     #if valid.sum()<10: continue
     dz[i] = deltaz_flat[valid].mean()
 
-pylab.figure(figsize=(5,5))
+# offset old bathymetry such that the minimum running-mean-of-differences is 0.
 datum_old = dz.min()
 print(datum_old)
+
+with open('bathymetry_difference.dat', 'w') as f:
+    f.write('bottom depth in 2002 (m)\tdifference 2011-2002 (m)\n')
+    for values in sorted(zip(z_old_ip_flat+datum_old, deltaz_flat-datum_old), key=lambda x: x[0]):
+        f.write('%s\t%s\n' % values)
+
+pylab.figure(figsize=(5,5))
 pylab.plot(z_old_ip_flat+datum_old,deltaz_flat-datum_old,'o')
 pylab.plot(z_old_rm+datum_old,dz-datum_old,'-r',linewidth=2.)
 pylab.grid(True)
